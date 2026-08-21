@@ -1,3 +1,6 @@
 .venv
 .env
 .pytest_cache
+
+src/ledgerlab/__pycache__/
+tests/__pycache__/
