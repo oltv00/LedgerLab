@@ -4,7 +4,7 @@ from ledgerlab.main import app
 
 client = TestClient(app)
 
-def test_health_return_ok_status() -> None:
+def test_health_returns_ok_status() -> None:
     response = client.get('/health')
 
     assert response.status_code == 200
