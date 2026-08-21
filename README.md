@@ -13,6 +13,12 @@ An independently built, multi-tenant payment-operations sandbox API for modeling
 - The operator can list only their organization’s transfers.
 - The operator requests a CSV export and later checks its status.
 
+## Explicit non-goals
+- No real payment processing, bank integrations, card data, or customer money.
+- No PCI DSS or production-compliance claim.
+- No microservices, Kafka, Kubernetes, or cloud deployment in the first version.
+- No AI feature until the core financial workflow is complete and tested.
+
 ## Domain glossary
 
 - Organization — the tenant boundary.
