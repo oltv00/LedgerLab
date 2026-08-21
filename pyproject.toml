@@ -1,0 +1,13 @@
+[project]
+name = "ledgerlab"
+version = "0.1.0"
+description = "Multi-tenant payment-operations sandbox API"
+authors = [
+    { name = "oltv00", email = "oltv00@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
