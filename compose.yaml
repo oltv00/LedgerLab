@@ -1,0 +1,10 @@
+name: ledgerlab
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile
+    image: localhost/ledgerlab:dev
+    ports:
+      - "127.0.0.1:8000:8000"
