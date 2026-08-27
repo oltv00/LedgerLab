@@ -23,8 +23,6 @@ def clear_organizations() -> Generator[None]:
         session.commit()
 
 # For this first red test, do not assert:
-# - UUID format;
-# - timestamp format;
 # - whitespace validation;
 # - database persistence across restarts;
 # - duplicate organization behavior;
@@ -36,4 +34,8 @@ def test_create_organization_returns_created_name() -> None:
     )
 
     assert response.status_code == 201
-    assert response.json()['name'] == 'Acme Operations'
+    response_body = response.json()
+
+    assert response_body['name'] == 'Acme Operations'
+    assert 'id' in response_body
+    assert 'created_at' in response_body

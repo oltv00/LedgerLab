@@ -26,4 +26,8 @@ def create_organization(
     session.add(organization)
     session.commit()
 
-    return {'name': organization.name}
+    return {
+        'id': str(organization.id),
+        'name': organization.name,
+        'created_at': str(organization.created_at),
+    }
