@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import Depends, FastAPI
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -17,7 +19,7 @@ def health() -> dict[str, str]:
 @app.post('/organizations', status_code=201)
 def create_organization(
     request: CreateOrganizationRequest,
-    session: Session = Depends(get_session),
+    session: Annotated[Session, Depends(get_session)],
 ) -> dict[str, str]:
     organization = Organization(name=request.name)
 
