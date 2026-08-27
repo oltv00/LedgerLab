@@ -6,6 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     image: localhost/ledgerlab:dev
+    environment:
+      DATABASE_URL: postgresql+psycopg://ledgerlab:ledgerlab@db:5432/ledgerlab
     ports:
       - "127.0.0.1:8000:8000"
   db:
