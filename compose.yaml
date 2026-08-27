@@ -5,9 +5,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: runtime
     image: localhost/ledgerlab:dev
+    environment:
+      DATABASE_URL: postgresql+psycopg://ledgerlab:ledgerlab@db:5432/ledgerlab
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:8000:8000"
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    image: localhost/ledgerlab:migrate-dev
+    environment:
+      DATABASE_URL: postgresql+psycopg://ledgerlab:ledgerlab@db:5432/ledgerlab
+    depends_on:
+      db:
+        condition: service_healthy
   db:
     image: postgres:18.6-alpine3.24
     environment:
