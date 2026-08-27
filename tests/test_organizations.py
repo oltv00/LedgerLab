@@ -1,4 +1,6 @@
 from collections.abc import Generator
+from datetime import datetime
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,7 +29,7 @@ def clear_organizations() -> Generator[None]:
 # - database persistence across restarts;
 # - duplicate organization behavior;
 # - authentication.
-def test_create_organization_returns_created_name() -> None:
+def test_create_organization_returns_created_organization() -> None:
     response = client.post(
         '/organizations',
         json={'name': 'Acme Operations'}
@@ -37,5 +39,8 @@ def test_create_organization_returns_created_name() -> None:
     response_body = response.json()
 
     assert response_body['name'] == 'Acme Operations'
-    assert 'id' in response_body
-    assert 'created_at' in response_body
+    assert UUID(response_body['id'])
+
+    created_at = response_body['created_at']
+    assert 'T' in created_at
+    assert datetime.fromisoformat(created_at).tzinfo is not None
