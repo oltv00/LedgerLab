@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, FastAPI
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
@@ -12,7 +12,13 @@ from ledgerlab.models import Organization
 app = FastAPI()
 
 class CreateOrganizationRequest(BaseModel):
-    name: str
+    name: Annotated[
+        str,
+        StringConstraints(
+            strip_whitespace=True,
+            min_length=1,
+        ),
+    ]
 
 class CreateOrganizationResponse(BaseModel):
     id: UUID
