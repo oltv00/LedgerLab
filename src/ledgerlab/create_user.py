@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -8,7 +9,6 @@ from sqlalchemy.orm import Session
 from ledgerlab.database import get_session
 
 router = APIRouter()
-
 
 class CreateUserRequest(BaseModel):
     name: Annotated[
@@ -27,12 +27,11 @@ class CreateUserRequest(BaseModel):
         # StringConstraints(pattern="/^[\\w\\-\\.]+@([\\w-]+\\.)+[\\w-]{2,}$"),
     ]
 
-
 class CreateUserResponse(BaseModel):
     id: UUID
     name: str
     email: str
-
+    created_at: datetime
 
 @router.post(
     "/users",
