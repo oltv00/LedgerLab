@@ -24,8 +24,10 @@ POST /users
 
 ## Initial validation rule
 
+- The user name must be non-empty after trimming surrounding whitespace.
 - Email must be syntactically valid after trimming surrounding whitespace.
 - LedgerLab does not verify the email domain or mailbox ownership in this slice.
+- Duplicate email behavior is not defined in this slice.
 
 ## Temporary authorization rule
 

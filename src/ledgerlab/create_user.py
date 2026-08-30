@@ -24,7 +24,6 @@ class CreateUserRequest(BaseModel):
             strip_whitespace=True,
             min_length=1,
         ),
-        # StringConstraints(pattern="/^[\\w\\-\\.]+@([\\w-]+\\.)+[\\w-]{2,}$"),
     ]
 
 class CreateUserResponse(BaseModel):
