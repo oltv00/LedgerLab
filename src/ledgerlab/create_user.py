@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, StringConstraints
+from pydantic import BaseModel, EmailStr, StringConstraints
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
@@ -18,13 +18,7 @@ class CreateUserRequest(BaseModel):
             min_length=1,
         ),
     ]
-    email: Annotated[
-        str,
-        StringConstraints(
-            strip_whitespace=True,
-            min_length=1,
-        ),
-    ]
+    email: EmailStr
 
 class CreateUserResponse(BaseModel):
     id: UUID
