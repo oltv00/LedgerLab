@@ -8,8 +8,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 class Base(DeclarativeBase):
     pass
 
+
 class Organization(Base):
-    __tablename__ = 'organizations'
+    __tablename__ = "organizations"
 
     id: Mapped[UUID] = mapped_column(
         Uuid,

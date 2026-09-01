@@ -11,6 +11,7 @@ from ledgerlab.models import Organization
 
 router = APIRouter()
 
+
 class CreateOrganizationRequest(BaseModel):
     name: Annotated[
         str,
@@ -20,13 +21,15 @@ class CreateOrganizationRequest(BaseModel):
         ),
     ]
 
+
 class CreateOrganizationResponse(BaseModel):
     id: UUID
     name: str
     created_at: datetime
 
+
 @router.post(
-    '/organizations',
+    "/organizations",
     status_code=201,
     response_model=CreateOrganizationResponse,
 )
