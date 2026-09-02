@@ -32,18 +32,13 @@ def clear_organizations() -> Generator[None]:
 # - authentication.
 def test_create_organization_returns_created_organization() -> None:
     response = client.post("/organizations", json={"name": "Acme Operations"})
-    response = client.post("/organizations", json={"name": "Acme Operations"})
 
     assert response.status_code == 201
     response_body = response.json()
 
     assert response_body["name"] == "Acme Operations"
     assert UUID(response_body["id"])
-    assert response_body["name"] == "Acme Operations"
-    assert UUID(response_body["id"])
 
-    created_at = response_body["created_at"]
-    assert "T" in created_at
     created_at = response_body["created_at"]
     assert "T" in created_at
     assert datetime.fromisoformat(created_at).tzinfo is not None
