@@ -13,7 +13,6 @@ from ledgerlab.models import Organization
 client = TestClient(app)
 
 
-
 @pytest.fixture(autouse=True)
 def clear_organizations() -> Generator[None]:
     with session_factory() as session:
@@ -25,7 +24,6 @@ def clear_organizations() -> Generator[None]:
     with session_factory() as session:
         session.execute(delete(Organization))
         session.commit()
-
 
 
 # For this first red test, do not assert:
@@ -51,7 +49,6 @@ def test_create_organization_returns_created_organization() -> None:
     assert datetime.fromisoformat(created_at).tzinfo is not None
 
 
-
 def test_create_organization_rejects_whitespace_only_name() -> None:
     response = client.post(
         "/organizations",
@@ -59,7 +56,6 @@ def test_create_organization_rejects_whitespace_only_name() -> None:
     )
 
     assert response.status_code == 422
-
 
 
 def test_create_organization_trims_surrounding_whitespace() -> None:
