@@ -53,6 +53,35 @@ def test_create_user_rejects_invalid_email() -> None:
     assert response.status_code == 422
 
 
+def test_create_user_rejects_whitespace_only_name() -> None:
+    response = client.post(
+        "/users",
+        json={"name": "     ", "email": "user_email@email.user"},
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_user_trims_surrounding_whitespace() -> None:
+    response = client.post(
+        "/users",
+        json={"name": "   user_name_value   ", "email": "user_email@email.user"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "user_name_value"
+
+
+def test_create_user_trims_surrounding_email_whitespace() -> None:
+    response = client.post(
+        "/users",
+        json={"name": "user_name_value", "email": "   user_email@email.user   "},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["email"] == "user_email@email.user"
+
+
 def test_create_user_persists_user() -> None:
     name = "user_name_value"
     email = "user_email_value@domain.com"
