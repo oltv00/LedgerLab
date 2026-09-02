@@ -1,13 +1,29 @@
+from collections.abc import Generator
 from datetime import datetime
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import delete, text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
+from ledgerlab.models import User
 
 client = TestClient(app=app)
+
+
+@pytest.fixture(autouse=True)
+def clear_users() -> Generator[None]:
+    with session_factory() as session:
+        session.execute(delete(User))
+        session.commit()
+
+    yield
+
+    with session_factory() as session:
+        session.execute(delete(User))
+        session.commit()
 
 
 def test_create_user_returns_created_user() -> None:
