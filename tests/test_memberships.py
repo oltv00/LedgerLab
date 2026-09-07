@@ -1,14 +1,33 @@
+from collections.abc import Generator
 from datetime import datetime
 from uuid import UUID
 
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import delete, text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
-from ledgerlab.models import Organization, User
+from ledgerlab.models import Organization, OrganizationMembership, User
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def clear_memberships() -> Generator[None]:
+    with session_factory() as session:
+        session.execute(delete(OrganizationMembership))
+        session.execute(delete(User))
+        session.execute(delete(Organization))
+        session.commit()
+
+    yield
+
+    with session_factory() as session:
+        session.execute(delete(OrganizationMembership))
+        session.execute(delete(User))
+        session.execute(delete(Organization))
+        session.commit()
 
 
 def test_create_organization_membership_persists_membership() -> None:
