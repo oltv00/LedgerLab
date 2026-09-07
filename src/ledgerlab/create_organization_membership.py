@@ -2,12 +2,12 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
-from ledgerlab.models import OrganizationMembership
+from ledgerlab.models import Organization, OrganizationMembership
 
 router = APIRouter()
 
@@ -33,6 +33,13 @@ def create_organization_membership(
     request: CreateOrganizationMembershipRequest,
     session: Annotated[Session, Depends(get_session)],
 ) -> CreateOrganizationMembershipResponse:
+    organization = session.get(Organization, organization_id)
+    if organization is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Organization not found",
+        )
+
     organization_membership = OrganizationMembership(
         organization_id=organization_id,
         user_id=request.user_id,

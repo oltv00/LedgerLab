@@ -75,3 +75,22 @@ def test_create_organization_membership_persists_membership() -> None:
     assert persisted_membership["organization_id"] == organization_id
     assert persisted_membership["user_id"] == user_id
     assert persisted_membership["created_at"].tzinfo is not None
+
+
+def test_create_organization_membership_rejects_unknown_organization() -> None:
+    with session_factory() as session:
+        user = User(name="user_name_value", email="email_value@domain.com")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+        user_id = user.id
+
+    organization_id = UUID("12345678-1234-5678-1234-567812345678")
+
+    response = client.post(
+        f"/organizations/{organization_id}/memberships",
+        json={"user_id": str(user_id)},
+    )
+
+    assert response.status_code == 404
