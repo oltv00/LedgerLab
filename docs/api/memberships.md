@@ -17,11 +17,17 @@ POST /organizations/{organization_id}/memberships
 ```json
 {
     "id": "<UUID>",
+    "role": "operator",
     "organization_id": "<UUID>",
     "user_id": "<UUID>",
     "created_at": "<UTC ISO 8601 timestamp>"
 }
 ```
+
+## Rules
+
+- A membership role is either operator or admin.
+- New memberships are assigned operator.
 
 ## Duplicate membership
 
@@ -42,6 +48,7 @@ Exactly one membership row remains in PostgreSQL.
 
 organization_memberships model
 ├── id               UUID primary key
+├── role             string, operator or admin, membership role
 ├── organization_id  required foreign key → organizations.id
 ├── user_id          required foreign key → users.id
 └── created_at       UTC database-generated timestamp
