@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, text
+from sqlalchemy import delete, select, text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
@@ -158,3 +158,37 @@ def test_create_organization_membership_rejects_duplicate_membership() -> None:
         ).scalar_one()
 
         assert membership_count == 1
+
+
+def test_create_organization_membership_assigns_operator_role() -> None:
+    with session_factory() as session:
+        user = User(name="user_name_value", email="email_value@domain.com")
+        organization = Organization(name="organization_name_value")
+
+        session.add_all([user, organization])
+        session.commit()
+        session.refresh(user)
+        session.refresh(organization)
+
+        organization_id = organization.id
+        user_id = user.id
+
+    response = client.post(
+        f"/organizations/{organization_id}/memberships",
+        json={"user_id": str(user_id)},
+    )
+
+    response_body = response.json()
+    assert response_body["role"] == "operator"
+
+    with session_factory() as session:
+        existing_membership = (
+            session.execute(
+                select(OrganizationMembership).where(
+                    OrganizationMembership.organization_id == organization_id,
+                    OrganizationMembership.user_id == user_id,
+                )
+            )
+        ).scalar_one_or_none()
+
+    existing_membership.role == "operator"
