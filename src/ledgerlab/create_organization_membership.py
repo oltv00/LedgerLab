@@ -4,6 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
@@ -33,6 +34,7 @@ def create_organization_membership(
     request: CreateOrganizationMembershipRequest,
     session: Annotated[Session, Depends(get_session)],
 ) -> CreateOrganizationMembershipResponse:
+
     organization = session.get(Organization, organization_id)
     if organization is None:
         raise HTTPException(
@@ -45,6 +47,20 @@ def create_organization_membership(
         raise HTTPException(
             status_code=404,
             detail="User not found",
+        )
+
+    existing_membership = (
+        session.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.user_id == request.user_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_membership is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="Membership already exists",
         )
 
     organization_membership = OrganizationMembership(

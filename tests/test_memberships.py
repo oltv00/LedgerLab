@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, text
+from sqlalchemy import delete, select, text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
@@ -113,3 +113,42 @@ def test_create_organization_membership_rejects_unknown_user() -> None:
     )
 
     assert response.status_code == 404
+
+
+def test_create_organization_membership_rejects_duplicate_membership() -> None:
+    with session_factory() as session:
+        user = User(name="user_name_value", email="email_value@domain.com")
+        organization = Organization(name="organization_name_value")
+
+        session.add_all([user, organization])
+        session.commit()
+        session.refresh(user)
+        session.refresh(organization)
+
+        membership = OrganizationMembership(
+            organization_id=organization.id, user_id=user.id
+        )
+
+        session.add(membership)
+        session.commit()
+        session.refresh(membership)
+
+        organization_id = organization.id
+        user_id = user.id
+
+    response = client.post(
+        f"/organizations/{organization_id}/memberships",
+        json={"user_id": str(user_id)},
+    )
+
+    assert response.status_code == 409
+
+    with session_factory() as session:
+        result = session.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.user_id == user_id,
+            )
+        )
+
+        assert len(result.scalars().all()) == 1
