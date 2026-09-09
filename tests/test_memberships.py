@@ -4,7 +4,7 @@ from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
@@ -144,11 +144,17 @@ def test_create_organization_membership_rejects_duplicate_membership() -> None:
     assert response.status_code == 409
 
     with session_factory() as session:
-        result = session.execute(
-            select(OrganizationMembership).where(
-                OrganizationMembership.organization_id == organization_id,
-                OrganizationMembership.user_id == user_id,
-            )
-        )
+        membership_count = session.execute(
+            text(
+                "SELECT COUNT(*) "
+                "FROM organization_memberships "
+                "WHERE organization_id = :organization_id "
+                "AND user_id = :user_id"
+            ),
+            {
+                "organization_id": organization_id,
+                "user_id": user_id,
+            },
+        ).scalar_one()
 
-        assert len(result.scalars().all()) == 1
+        assert membership_count == 1
