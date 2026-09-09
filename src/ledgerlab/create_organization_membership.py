@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
-from ledgerlab.models import Organization, OrganizationMembership
+from ledgerlab.models import Organization, OrganizationMembership, User
 
 router = APIRouter()
 
@@ -38,6 +38,13 @@ def create_organization_membership(
         raise HTTPException(
             status_code=404,
             detail="Organization not found",
+        )
+
+    user = session.get(User, request.user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="User not found",
         )
 
     organization_membership = OrganizationMembership(

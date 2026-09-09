@@ -94,3 +94,22 @@ def test_create_organization_membership_rejects_unknown_organization() -> None:
     )
 
     assert response.status_code == 404
+
+
+def test_create_organization_membership_rejects_unknown_user() -> None:
+    with session_factory() as session:
+        organization = Organization(name="organization_name_value")
+        session.add(organization)
+        session.commit()
+        session.refresh(organization)
+
+        organization_id = organization.id
+
+    user_id = UUID("12345678-1234-5678-1234-567812345678")
+
+    response = client.post(
+        f"/organizations/{organization_id}/memberships",
+        json={"user_id": str(user_id)},
+    )
+
+    assert response.status_code == 404
