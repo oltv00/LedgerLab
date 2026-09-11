@@ -112,7 +112,7 @@ def test_create_user_persists_user() -> None:
     assert persisted_user["created_at"].tzinfo is not None
 
 
-def test_create_user_with_existing_duplicated_email() -> None:
+def test_create_user_rejects_duplicate_email() -> None:
     with session_factory() as session:
         email = "email_value@domain.com"
         user = User(name="user_name_value", email=email)

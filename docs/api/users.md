@@ -28,10 +28,10 @@ POST /users
 - Email must be syntactically valid after trimming surrounding whitespace.
 - LedgerLab does not verify the email domain or mailbox ownership in this slice.
 
-## Duplication email behavior
+## Duplicate email behavior
 
-- Email must be unique per user.
-- API returns 409 Conflict if POST /users with existing email.
+- Email must be unique per User.
+- The API returns 409 Conflict when POST /users is called with an existing email.
 
 ## Temporary authorization rule
 

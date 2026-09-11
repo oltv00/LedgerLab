@@ -50,7 +50,7 @@ def create_user(
     if existing_user is not None:
         raise HTTPException(
             status_code=409,
-            detail="User with current email already exist",
+            detail="User with this email already exists",
         )
 
     user = User(name=request.name, email=request.email)
