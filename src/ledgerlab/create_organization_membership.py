@@ -19,6 +19,7 @@ class CreateOrganizationMembershipRequest(BaseModel):
 
 class CreateOrganizationMembershipResponse(BaseModel):
     id: UUID
+    role: str
     organization_id: UUID
     user_id: UUID
     created_at: datetime
@@ -74,6 +75,7 @@ def create_organization_membership(
 
     return CreateOrganizationMembershipResponse(
         id=organization_membership.id,
+        role=organization_membership.role,
         organization_id=organization_membership.organization_id,
         user_id=organization_membership.user_id,
         created_at=organization_membership.created_at,

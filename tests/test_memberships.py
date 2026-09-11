@@ -178,6 +178,7 @@ def test_create_organization_membership_assigns_operator_role() -> None:
         json={"user_id": str(user_id)},
     )
 
+    assert response.status_code == 201
     response_body = response.json()
     assert response_body["role"] == "operator"
 
@@ -189,6 +190,6 @@ def test_create_organization_membership_assigns_operator_role() -> None:
                     OrganizationMembership.user_id == user_id,
                 )
             )
-        ).scalar_one_or_none()
+        ).scalar_one()
 
-    existing_membership.role == "operator"
+        assert existing_membership.role == "operator"
