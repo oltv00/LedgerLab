@@ -1,7 +1,15 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, Uuid, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    UniqueConstraint,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -61,12 +69,22 @@ class OrganizationMembership(Base):
             "user_id",
             name="uq_organization_memberships_organization_id_user_id",
         ),
+        CheckConstraint(
+            "role IN ('operator', 'admin')",
+            name="ck_organization_memberships_role",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
         Uuid,
         primary_key=True,
         default=uuid4,
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="operator",
     )
 
     organization_id: Mapped[UUID] = mapped_column(
