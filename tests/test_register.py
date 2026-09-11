@@ -2,6 +2,7 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
+from pwdlib import PasswordHash
 from sqlalchemy import delete, text
 
 from ledgerlab.database import session_factory
@@ -9,6 +10,7 @@ from ledgerlab.main import app
 from ledgerlab.models import User
 
 client = TestClient(app=app)
+password_hashing = PasswordHash.recommended()
 
 
 @pytest.fixture(autouse=True)
