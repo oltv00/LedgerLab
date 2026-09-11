@@ -2,8 +2,9 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, StringConstraints
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
@@ -39,6 +40,19 @@ def create_user(
     request: CreateUserRequest,
     session: Annotated[Session, Depends(get_session)],
 ) -> CreateUserResponse:
+    existing_user = (
+        session.execute(
+            select(User).where(
+                User.email == request.email,
+            )
+        )
+    ).scalar_one_or_none()
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="User with this email already exists",
+        )
+
     user = User(name=request.name, email=request.email)
 
     session.add(user)

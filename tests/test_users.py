@@ -110,3 +110,29 @@ def test_create_user_persists_user() -> None:
     assert persisted_user["name"] == name
     assert persisted_user["email"] == email
     assert persisted_user["created_at"].tzinfo is not None
+
+
+def test_create_user_rejects_duplicate_email() -> None:
+    with session_factory() as session:
+        email = "email_value@domain.com"
+        user = User(name="user_name_value", email=email)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    response = client.post(
+        "/users",
+        json={"name": "new_user_name_value", "email": email},
+    )
+
+    assert response.status_code == 409
+
+    with session_factory() as session:
+        users_count_with_existed_email = session.execute(
+            text("SELECT COUNT(*) FROM users WHERE email = :email"),
+            {
+                "email": email,
+            },
+        ).scalar_one()
+
+        assert users_count_with_existed_email == 1
