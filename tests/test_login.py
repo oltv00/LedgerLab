@@ -1,5 +1,7 @@
 from collections.abc import Generator
+from uuid import UUID
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
@@ -13,8 +15,8 @@ client = TestClient(app=app)
 password_hashing = PasswordHash.recommended()
 
 
-@pytest.fixture(autouse=True)
-def clear_and_add_user_before_and_clear_after() -> Generator[None]:
+@pytest.fixture
+def registered_user_id() -> Generator[UUID]:
     with session_factory() as session:
         session.execute(delete(User))
 
@@ -24,15 +26,26 @@ def clear_and_add_user_before_and_clear_after() -> Generator[None]:
 
         session.add(user)
         session.commit()
+        session.refresh(user)
 
-    yield
+    yield user.id
 
     with session_factory() as session:
         session.execute(delete(User))
         session.commit()
 
 
-def test_login_returns_access_token() -> None:
+@pytest.fixture
+def jwt_secret(monkeypatch: pytest.MonkeyPatch) -> str:
+    secret = "test-jwt-secret"
+    monkeypatch.setenv("JWT_SECRET", secret)
+    return secret
+
+
+def test_login_returns_access_token(
+    registered_user_id: UUID,
+    jwt_secret: str,
+) -> None:
     response = client.post(
         "/auth/login",
         json={
@@ -42,9 +55,18 @@ def test_login_returns_access_token() -> None:
     )
 
     assert response.status_code == 200
-    assert "access_token" in response.json()
+    access_token = response.json()["access_token"]
+    claims = jwt.decode(
+        access_token,
+        key=jwt_secret,
+        algorithms=["HS256"],
+        options={"require": ["sub", "exp"]},
+    )
+    assert claims["sub"] == str(registered_user_id)
+    assert "exp" in claims
 
 
+@pytest.mark.usefixtures("registered_user_id")
 def test_login_rejects_wrong_password() -> None:
     response = client.post(
         "/auth/login",
