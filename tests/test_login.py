@@ -42,6 +42,23 @@ def jwt_secret(monkeypatch: pytest.MonkeyPatch) -> str:
     return secret
 
 
+@pytest.fixture
+def user_without_password_hash_email() -> Generator[str]:
+    with session_factory() as session:
+        session.execute(delete(User))
+
+        user = User(name="user_name_value", email="email_value@domain.com")
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    yield user.email
+
+    with session_factory() as session:
+        session.execute(delete(User))
+        session.commit()
+
+
 def test_login_returns_access_token(
     registered_user_id: UUID,
     jwt_secret: str,
@@ -84,6 +101,20 @@ def test_login_rejects_unknown_email() -> None:
         "/auth/login",
         json={
             "email": "email_value_not_found@domain.com",
+            "password": "8c647eab31fe",
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_login_without_password_hash(
+    user_without_password_hash_email: str,
+) -> None:
+    response = client.post(
+        "/auth/login",
+        json={
+            "email": user_without_password_hash_email,
             "password": "8c647eab31fe",
         },
     )
