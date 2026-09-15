@@ -37,7 +37,7 @@ def registered_user_id() -> Generator[UUID]:
 
 @pytest.fixture
 def jwt_secret(monkeypatch: pytest.MonkeyPatch) -> str:
-    secret = "test-jwt-secret"
+    secret = "04a58a7a876cdbeeee87ceaa6c9608caf60ec6a52eea4a950da39d6c50910bf2"
     monkeypatch.setenv("JWT_SECRET", secret)
     return secret
 
