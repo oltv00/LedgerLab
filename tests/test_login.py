@@ -5,7 +5,6 @@ import jwt
 import pytest
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
-from sqlalchemy import delete
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
@@ -18,8 +17,6 @@ password_hashing = PasswordHash.recommended()
 @pytest.fixture
 def registered_user_id() -> Generator[UUID]:
     with session_factory() as session:
-        session.execute(delete(User))
-
         password = "8c647eab31fe"
         user = User(name="user_name_value", email="email_value@domain.com")
         user.password_hash = password_hashing.hash(password)
@@ -29,10 +26,6 @@ def registered_user_id() -> Generator[UUID]:
         session.refresh(user)
 
     yield user.id
-
-    with session_factory() as session:
-        session.execute(delete(User))
-        session.commit()
 
 
 @pytest.fixture
@@ -45,18 +38,12 @@ def jwt_secret(monkeypatch: pytest.MonkeyPatch) -> str:
 @pytest.fixture
 def user_without_password_hash_email() -> Generator[str]:
     with session_factory() as session:
-        session.execute(delete(User))
-
         user = User(name="user_name_value", email="email_value@domain.com")
         session.add(user)
         session.commit()
         session.refresh(user)
 
     yield user.email
-
-    with session_factory() as session:
-        session.execute(delete(User))
-        session.commit()
 
 
 def test_login_returns_access_token(
