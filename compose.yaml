@@ -9,6 +9,7 @@ services:
     image: localhost/ledgerlab:dev
     environment:
       DATABASE_URL: postgresql+psycopg://ledgerlab:ledgerlab@db:5432/ledgerlab
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
     depends_on:
       migrate:
         condition: service_completed_successfully

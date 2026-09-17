@@ -1,29 +1,12 @@
-from collections.abc import Generator
-
-import pytest
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
-from sqlalchemy import delete, text
+from sqlalchemy import text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
-from ledgerlab.models import User
 
 client = TestClient(app=app)
 password_hashing = PasswordHash.recommended()
-
-
-@pytest.fixture(autouse=True)
-def clear_register_users() -> Generator[None]:
-    with session_factory() as session:
-        session.execute(delete(User))
-        session.commit()
-
-    yield
-
-    with session_factory() as session:
-        session.execute(delete(User))
-        session.commit()
 
 
 def test_register_creates_user_with_hashed_password() -> None:
