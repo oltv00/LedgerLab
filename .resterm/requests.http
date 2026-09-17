@@ -1,0 +1,67 @@
+### Health
+# @name Health
+# @assert response.statusCode == 200
+# @assert response.json("status") == "ok"
+GET {{base.url}}/health
+
+
+### Create organization
+# @name CreateOrganization
+# @assert response.statusCode == 201
+POST {{base.url}}/organizations
+Content-Type: application/json
+
+{
+  "name": "LedgerLab Organization"
+}
+
+
+### Create User
+# @name CreateUser
+# @assert response.statusCode == 201
+POST {{base.url}}/users
+Content-Type: application/json
+
+{
+  "name": "LedgerLab User",
+  "email": "ledgerlab_user@example.com"
+}
+
+
+### Register User
+# Change the email after a successful registration if you send this request again.
+# @name RegisterUser
+# @assert response.statusCode == 201
+POST {{base.url}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "LedgerLab Registered User",
+  "email": "ledgerlab_registered_user@example.com",
+  "password": "correct-horse-battery-staple"
+}
+
+
+### Login
+# Send Register User first.
+# @name Login
+# @assert response.statusCode == 200
+POST {{base.url}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ledgerlab_registered_user@example.com",
+  "password": "correct-horse-battery-staple"
+}
+
+
+### Create membership
+# Replace both UUID placeholders with IDs returned by Create organization and Register User.
+# @name CreateMembership
+# @assert response.statusCode == 201
+POST {{base.url}}/organizations/REPLACE_WITH_ORGANIZATION_UUID/memberships
+Content-Type: application/json
+
+{
+  "user_id": "REPLACE_WITH_USER_UUID"
+}
