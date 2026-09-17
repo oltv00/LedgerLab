@@ -57,3 +57,27 @@ def test_current_user(
     }
 
     assert response.json() == expected_response
+
+
+def test_current_user_rejects_token_with_non_uuid_subject(
+    jwt_secret: str,
+) -> None:
+    exp = datetime.now(UTC) + timedelta(minutes=1)
+    payload = {
+        "sub": "not_an_uuid",
+        "exp": exp,
+    }
+    access_token = jwt.encode(
+        payload=payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+
+    response = client.get(
+        "/auth/me",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+        },
+    )
+
+    assert response.status_code == 401
