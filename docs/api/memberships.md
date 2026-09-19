@@ -39,10 +39,13 @@ Exactly one membership row remains in PostgreSQL.
 - organization_id path parameter must be a UUID.
 - user_id must be a UUID.
 
-## Temporary authorization rule
+## Authorization rules
 
-- This initial membership-creation endpoint is unauthenticated.
-- Membership-management authorization and roles will be added later.
+- The request requires Authorization: Bearer <JWT_bearer_access_token>.
+- Only an admin membership in the target organization may create a membership there.
+- An operator membership in the target organization returns 403 Forbidden.
+- A User without membership in the target organization returns 403 Forbidden.
+- A request without a valid access token returns 401 Unauthorized.
 
 ## Database shape
 
@@ -57,5 +60,5 @@ Database constraint: UNIQUE (organization_id, user_id)
 
 ## Other
 
-- Unknown organization ID → 404
+- Unknown organization ID → 403 Forbidden
 - Unknown user ID → 404
