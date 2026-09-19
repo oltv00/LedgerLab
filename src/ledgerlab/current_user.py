@@ -21,18 +21,13 @@ class CurrentUserResponse(BaseModel):
     email: str
 
 
-@router.get(
-    "/auth/me",
-    status_code=200,
-    response_model=CurrentUserResponse,
-)
-def get_current_user(
+def get_authenticated_user(
     credentials: Annotated[
         HTTPAuthorizationCredentials | None,
         Depends(bearer_security),
     ],
     session: Annotated[Session, Depends(get_session)],
-) -> CurrentUserResponse:
+) -> User:
     if credentials is None:
         raise HTTPException(
             status_code=401,
@@ -67,9 +62,19 @@ def get_current_user(
             status_code=401,
             detail="Credentials are invalid",
         )
+    return user
 
+
+@router.get(
+    "/auth/me",
+    status_code=200,
+    response_model=CurrentUserResponse,
+)
+def get_current_user(
+    current_user: Annotated[User, Depends(get_authenticated_user)],
+) -> CurrentUserResponse:
     return CurrentUserResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
     )
