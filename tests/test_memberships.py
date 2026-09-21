@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -37,8 +38,8 @@ def new_user_id() -> UUID:
 def admin_user_id() -> UUID:
     with session_factory() as session:
         user = User(
-            name="user_name_value",
-            email="email_value@domain.com",
+            name="admin_user_name_value",
+            email="admin_email_value@domain.com",
         )
         session.add(user)
         session.commit()
@@ -47,26 +48,45 @@ def admin_user_id() -> UUID:
 
 
 @pytest.fixture
-def admin_organization_id() -> UUID:
+def operator_user_id() -> UUID:
     with session_factory() as session:
-        organization = Organization(
-            name="organization_name_value",
+        user = User(
+            name="operator_user_name_value",
+            email="operator_email_value@domain.com",
         )
-        session.add(organization)
+        session.add(user)
         session.commit()
-        session.refresh(organization)
-    return organization.id
+        session.refresh(user)
+    return user.id
+
+
+@pytest.fixture
+def create_organization() -> Callable[[str], UUID]:
+    def create(name: str) -> UUID:
+        with session_factory() as session:
+            organization = Organization(name=name)
+            session.add(organization)
+            session.commit()
+            session.refresh(organization)
+        return organization.id
+
+    return create
+
+
+@pytest.fixture
+def organization_id(create_organization) -> UUID:
+    return create_organization("organization_name_value")
 
 
 @pytest.fixture
 def admin_authenticated_headers(
     jwt_secret: str,
     admin_user_id: UUID,
-    admin_organization_id: UUID,
+    organization_id: UUID,
 ) -> dict[str, str]:
     with session_factory() as session:
         organization_membership = OrganizationMembership(
-            organization_id=admin_organization_id,
+            organization_id=organization_id,
             user_id=admin_user_id,
             role="admin",
         )
@@ -86,14 +106,42 @@ def admin_authenticated_headers(
     return {"Authorization": f"Bearer {access_token}"}
 
 
+@pytest.fixture
+def operator_authenticated_headers(
+    jwt_secret: str,
+    operator_user_id: UUID,
+    organization_id: UUID,
+) -> dict[str, str]:
+    with session_factory() as session:
+        organization_membership = OrganizationMembership(
+            organization_id=organization_id,
+            user_id=operator_user_id,
+            role="operator",
+        )
+        session.add(organization_membership)
+        session.commit()
+
+    exp = datetime.now(UTC) + timedelta(minutes=1)
+    payload = {
+        "sub": str(operator_user_id),
+        "exp": exp,
+    }
+    access_token = jwt.encode(
+        payload=payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+    return {"Authorization": f"Bearer {access_token}"}
+
+
 def test_create_organization_membership_persists_membership(
     admin_authenticated_headers: dict[str, str],
-    admin_organization_id: UUID,
+    organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
 
     response = client.post(
-        f"/organizations/{admin_organization_id}/memberships",
+        f"/organizations/{organization_id}/memberships",
         headers=admin_authenticated_headers,
         json={"user_id": str(new_user_id)},
     )
@@ -103,7 +151,7 @@ def test_create_organization_membership_persists_membership(
     membership_id = response_body["id"]
 
     assert UUID(membership_id)
-    assert UUID(response_body["organization_id"]) == admin_organization_id
+    assert UUID(response_body["organization_id"]) == organization_id
     assert UUID(response_body["user_id"]) == new_user_id
     created_at = response_body["created_at"]
     assert "T" in created_at
@@ -122,7 +170,7 @@ def test_create_organization_membership_persists_membership(
         )
 
     assert persisted_membership["id"] == UUID(response_body["id"])
-    assert persisted_membership["organization_id"] == admin_organization_id
+    assert persisted_membership["organization_id"] == organization_id
     assert persisted_membership["user_id"] == new_user_id
     assert persisted_membership["created_at"].tzinfo is not None
 
@@ -144,12 +192,12 @@ def test_create_organization_membership_rejects_unknown_organization(
 
 def test_create_organization_membership_rejects_unknown_user(
     admin_authenticated_headers: dict[str, str],
-    admin_organization_id: UUID,
+    organization_id: UUID,
 ) -> None:
     user_id = UUID("12345678-1234-5678-1234-567812345678")
 
     response = client.post(
-        f"/organizations/{admin_organization_id}/memberships",
+        f"/organizations/{organization_id}/memberships",
         headers=admin_authenticated_headers,
         json={"user_id": str(user_id)},
     )
@@ -159,19 +207,19 @@ def test_create_organization_membership_rejects_unknown_user(
 
 def test_create_organization_membership_rejects_duplicate_membership(
     admin_authenticated_headers: dict[str, str],
-    admin_organization_id: UUID,
+    organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
     with session_factory() as session:
         membership = OrganizationMembership(
-            organization_id=admin_organization_id, user_id=new_user_id
+            organization_id=organization_id, user_id=new_user_id
         )
         session.add(membership)
         session.commit()
         session.refresh(membership)
 
     response = client.post(
-        f"/organizations/{admin_organization_id}/memberships",
+        f"/organizations/{organization_id}/memberships",
         headers=admin_authenticated_headers,
         json={"user_id": str(new_user_id)},
     )
@@ -187,7 +235,7 @@ def test_create_organization_membership_rejects_duplicate_membership(
                 "AND user_id = :user_id"
             ),
             {
-                "organization_id": admin_organization_id,
+                "organization_id": organization_id,
                 "user_id": new_user_id,
             },
         ).scalar_one()
@@ -197,11 +245,11 @@ def test_create_organization_membership_rejects_duplicate_membership(
 
 def test_create_organization_membership_assigns_operator_role(
     admin_authenticated_headers: dict[str, str],
-    admin_organization_id: UUID,
+    organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
     response = client.post(
-        f"/organizations/{admin_organization_id}/memberships",
+        f"/organizations/{organization_id}/memberships",
         headers=admin_authenticated_headers,
         json={"user_id": str(new_user_id)},
     )
@@ -214,7 +262,7 @@ def test_create_organization_membership_assigns_operator_role(
         existing_membership = (
             session.execute(
                 select(OrganizationMembership).where(
-                    OrganizationMembership.organization_id == admin_organization_id,
+                    OrganizationMembership.organization_id == organization_id,
                     OrganizationMembership.user_id == new_user_id,
                 )
             )
@@ -242,3 +290,33 @@ def test_create_organization_membership_rejects_request_without_access_token() -
     )
 
     assert response.status_code == 401
+
+
+def test_create_organization_membership_rejects_for_operator_role(
+    operator_authenticated_headers: dict[str, str],
+    organization_id: UUID,
+    new_user_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/memberships",
+        headers=operator_authenticated_headers,
+        json={"user_id": str(new_user_id)},
+    )
+
+    assert response.status_code == 403
+
+    with session_factory() as session:
+        membership_count = session.execute(
+            text(
+                "SELECT COUNT(*) "
+                "FROM organization_memberships "
+                "WHERE organization_id = :organization_id "
+                "AND user_id = :user_id"
+            ),
+            {
+                "organization_id": organization_id,
+                "user_id": new_user_id,
+            },
+        ).scalar_one()
+
+        assert membership_count == 0
