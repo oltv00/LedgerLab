@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledgerlab.current_user import get_authenticated_user
 from ledgerlab.database import get_session
 from ledgerlab.models import Organization, OrganizationMembership, User
 
@@ -34,6 +35,7 @@ def create_organization_membership(
     organization_id: UUID,
     request: CreateOrganizationMembershipRequest,
     session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_authenticated_user)],
 ) -> CreateOrganizationMembershipResponse:
 
     organization = session.get(Organization, organization_id)
