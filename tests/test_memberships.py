@@ -61,7 +61,7 @@ def operator_user_id() -> UUID:
 
 
 @pytest.fixture
-def create_organization() -> Callable[[str], UUID]:
+def create_organization_id() -> Callable[[str], UUID]:
     def create(name: str) -> UUID:
         with session_factory() as session:
             organization = Organization(name=name)
@@ -74,8 +74,8 @@ def create_organization() -> Callable[[str], UUID]:
 
 
 @pytest.fixture
-def organization_id(create_organization) -> UUID:
-    return create_organization("organization_name_value")
+def organization_id(create_organization_id) -> UUID:
+    return create_organization_id("organization_name_value")
 
 
 @pytest.fixture
@@ -315,6 +315,38 @@ def test_create_organization_membership_rejects_for_operator_role(
             ),
             {
                 "organization_id": organization_id,
+                "user_id": new_user_id,
+            },
+        ).scalar_one()
+
+        assert membership_count == 0
+
+
+def test_create_organization_membership_rejects_for_admin_from_another_tenant(
+    admin_authenticated_headers: dict[str, str],
+    create_organization_id: Callable[[str], UUID],
+    new_user_id: UUID,
+) -> None:
+    target_organization_id = create_organization_id("new_organization")
+
+    response = client.post(
+        f"/organizations/{target_organization_id}/memberships",
+        headers=admin_authenticated_headers,
+        json={"user_id": str(new_user_id)},
+    )
+
+    assert response.status_code == 403
+
+    with session_factory() as session:
+        membership_count = session.execute(
+            text(
+                "SELECT COUNT(*) "
+                "FROM organization_memberships "
+                "WHERE organization_id = :organization_id "
+                "AND user_id = :user_id"
+            ),
+            {
+                "organization_id": target_organization_id,
                 "user_id": new_user_id,
             },
         ).scalar_one()
