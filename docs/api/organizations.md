@@ -1,8 +1,37 @@
 # Organizations API
 
-POST /organizations
+## GET /organizations/{organization_id}
 
-## Request
+Request
+
+```
+Authorization: Bearer <JWT_bearer_access_token>
+```
+
+Successful response
+
+Status: 200 OK
+
+```json
+{
+    "id": "<UUID>",
+    "name": "Acme Operations",
+    "created_at": "<UTC ISO 8601 timestamp>"
+}
+```
+
+###  Rules
+
+- Authenticated admin or operator with a membership in the target organization
+  - Status: 200 OK
+- Authenticated user without a target-organization membership
+  - Status: 403 Forbidden
+- Request without a valid access token
+  - Status: 401 Unauthorized
+
+## POST /organizations
+
+Request
 
 ```json
 {
@@ -10,7 +39,7 @@ POST /organizations
 }
 ```
 
-## Successful response
+Successful response
 
 Status: 201 Created
 
@@ -22,11 +51,14 @@ Status: 201 Created
 }
 ```
 
-## Initial validation rule
+### Initial validation rule
 
 - The organization name must be non-empty after trimming surrounding whitespace.
 
-## Temporary authorization rule
+### Authorization and bootstrap rules
 
-- This initial bootstrap endpoint is unauthenticated.
-- Authentication, organization membership, and administrator authorization will be introduced in the user-and-membership slice.
+- The request requires Authorization: Bearer <JWT_bearer_access_token>.
+- An authenticated user can create an organization.
+- Creating an organization also creates an organization membership for the authenticated User with role admin.
+- The organization and initial admin membership are created in one database transaction.
+- A request without a valid access token returns 401 Unauthorized.

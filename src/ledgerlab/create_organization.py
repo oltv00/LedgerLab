@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, StringConstraints
 from sqlalchemy.orm import Session
 
+from ledgerlab.current_user import get_authenticated_user
 from ledgerlab.database import get_session
-from ledgerlab.models import Organization
+from ledgerlab.models import Organization, OrganizationMembership, User
 
 router = APIRouter()
 
@@ -34,12 +35,21 @@ class CreateOrganizationResponse(BaseModel):
     response_model=CreateOrganizationResponse,
 )
 def create_organization(
+    current_user: Annotated[User, Depends(get_authenticated_user)],
     request: CreateOrganizationRequest,
     session: Annotated[Session, Depends(get_session)],
 ) -> CreateOrganizationResponse:
     organization = Organization(name=request.name)
-
     session.add(organization)
+    session.flush()
+
+    membership = OrganizationMembership(
+        organization_id=organization.id,
+        user_id=current_user.id,
+        role="admin",
+    )
+    session.add(membership)
+
     session.commit()
     session.refresh(organization)
 

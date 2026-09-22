@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledgerlab.current_user import get_authenticated_user
 from ledgerlab.database import get_session
 from ledgerlab.models import Organization, OrganizationMembership, User
 
@@ -34,7 +35,22 @@ def create_organization_membership(
     organization_id: UUID,
     request: CreateOrganizationMembershipRequest,
     session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_authenticated_user)],
 ) -> CreateOrganizationMembershipResponse:
+    admin_membership = (
+        session.execute(
+            select(OrganizationMembership).where(
+                OrganizationMembership.organization_id == organization_id,
+                OrganizationMembership.user_id == current_user.id,
+                OrganizationMembership.role == "admin",
+            )
+        )
+    ).scalar_one_or_none()
+    if admin_membership is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
 
     organization = session.get(Organization, organization_id)
     if organization is None:
