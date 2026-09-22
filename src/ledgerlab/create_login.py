@@ -1,6 +1,7 @@
 import os
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from uuid import uuid4
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,6 +24,7 @@ class CreateLoginRequest(BaseModel):
 
 class CreateLoginResponse(BaseModel):
     access_token: str
+    refresh_token: str
 
 
 @router.post(
@@ -64,14 +66,31 @@ def create_login(
         )
 
     expires_at = datetime.now(UTC) + timedelta(minutes=15)
-    claims = {
+    access_claims = {
         "sub": str(user.id),
         "exp": expires_at,
+        "typ": "access",
     }
     access_token = jwt.encode(
-        claims,
+        access_claims,
         key=os.environ["JWT_SECRET"],
         algorithm="HS256",
     )
 
-    return CreateLoginResponse(access_token=access_token)
+    expires_at = datetime.now(UTC) + timedelta(days=7)
+    refresh_claims = {
+        "sub": str(user.id),
+        "exp": expires_at,
+        "typ": "refresh",
+        "jti": str(uuid4()),
+    }
+    refresh_token = jwt.encode(
+        refresh_claims,
+        key=os.environ["JWT_SECRET"],
+        algorithm="HS256",
+    )
+
+    return CreateLoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+    )

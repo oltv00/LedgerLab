@@ -46,7 +46,7 @@ def user_without_password_hash_email() -> Generator[str]:
     yield user.email
 
 
-def test_login_returns_access_token(
+def test_login_returns_access_and_refresh_tokens(
     registered_user_id: UUID,
     jwt_secret: str,
 ) -> None:
@@ -59,15 +59,36 @@ def test_login_returns_access_token(
     )
 
     assert response.status_code == 200
+
     access_token = response.json()["access_token"]
-    claims = jwt.decode(
+    refresh_token = response.json()["refresh_token"]
+
+    algorithms = ["HS256"]
+
+    access_token_claims = jwt.decode(
         access_token,
         key=jwt_secret,
-        algorithms=["HS256"],
-        options={"require": ["sub", "exp"]},
+        algorithms=algorithms,
+        options={"require": ["sub", "exp", "typ"]},
     )
-    assert claims["sub"] == str(registered_user_id)
-    assert "exp" in claims
+
+    refresh_token_claims = jwt.decode(
+        refresh_token,
+        key=jwt_secret,
+        algorithms=algorithms,
+        options={"require": ["sub", "exp", "typ", "jti"]},
+    )
+
+    assert access_token_claims["sub"] == str(registered_user_id)
+    assert refresh_token_claims["sub"] == str(registered_user_id)
+
+    assert "exp" in access_token_claims
+    assert "exp" in refresh_token_claims
+
+    assert access_token_claims["typ"] == "access"
+    assert refresh_token_claims["typ"] == "refresh"
+
+    assert len(refresh_token_claims["jti"]) != 0
 
 
 @pytest.mark.usefixtures("registered_user_id")
