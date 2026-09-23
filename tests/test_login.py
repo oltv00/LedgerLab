@@ -1,10 +1,12 @@
 from collections.abc import Generator
+from datetime import datetime
 from uuid import UUID
 
 import jwt
 import pytest
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
+from sqlalchemy import text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
@@ -89,6 +91,32 @@ def test_login_returns_access_and_refresh_tokens(
     assert refresh_token_claims["typ"] == "refresh"
 
     assert len(refresh_token_claims["jti"]) != 0
+
+    jti = refresh_token_claims["jti"]
+
+    with session_factory() as session:
+        existed_refresh_token = (
+            session.execute(
+                text(
+                    "SELECT user_id, jti, expires_at, revoked_at "
+                    "FROM refresh-tokens "
+                    "WHERE jti = :jti"
+                ),
+                {
+                    "jti": jti,
+                },
+            )
+            .mappings()
+            .one()
+        )
+
+        assert existed_refresh_token["jti"] == jti
+        assert existed_refresh_token["user_id"] == str(registered_user_id)
+
+        expires_at = datetime.fromisoformat(refresh_token_claims["exp"])
+        assert existed_refresh_token["expires_at"] == expires_at
+
+        assert existed_refresh_token["revoked_at"] is None
 
 
 @pytest.mark.usefixtures("registered_user_id")
