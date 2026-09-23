@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ledgerlab.database import get_session
-from ledgerlab.models import User
+from ledgerlab.models import RefreshToken, User
 
 router = APIRouter()
 password_hashing = PasswordHash.recommended()
@@ -65,10 +65,10 @@ def create_login(
             detail="Credentials are invalid",
         )
 
-    expires_at = datetime.now(UTC) + timedelta(minutes=15)
+    access_expires_at = datetime.now(UTC) + timedelta(minutes=15)
     access_claims = {
         "sub": str(user.id),
-        "exp": expires_at,
+        "exp": access_expires_at,
         "typ": "access",
     }
     access_token = jwt.encode(
@@ -77,18 +77,27 @@ def create_login(
         algorithm="HS256",
     )
 
-    expires_at = datetime.now(UTC) + timedelta(days=7)
+    refresh_expires_at = (datetime.now(UTC) + timedelta(days=7)).replace(microsecond=0)
+    refresh_jti = uuid4()
     refresh_claims = {
         "sub": str(user.id),
-        "exp": expires_at,
+        "exp": refresh_expires_at,
         "typ": "refresh",
-        "jti": str(uuid4()),
+        "jti": str(refresh_jti),
     }
     refresh_token = jwt.encode(
         refresh_claims,
         key=os.environ["JWT_SECRET"],
         algorithm="HS256",
     )
+
+    refresh_token_model = RefreshToken(
+        jti=refresh_jti,
+        user_id=user.id,
+        expires_at=refresh_expires_at,
+    )
+    session.add(refresh_token_model)
+    session.commit()
 
     return CreateLoginResponse(
         access_token=access_token,
