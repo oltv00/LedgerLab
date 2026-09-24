@@ -38,7 +38,7 @@ def refresh_token(
     jwt_secret: str,
     user: User,
 ) -> str:
-    exp = datetime.now(UTC) + timedelta(days=7)
+    exp = (datetime.now(UTC) + timedelta(days=7)).replace(microsecond=0)
     jti = uuid4()
     payload = {
         "sub": str(user.id),
