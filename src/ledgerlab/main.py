@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from ledgerlab.auth.auth_logout import router as auth_logout_router
 from ledgerlab.auth.auth_refresh import router as auth_refresh_router
 from ledgerlab.create_login import router as login_router
 from ledgerlab.create_organization import router as organization_router
@@ -18,6 +19,7 @@ app.include_router(login_router)
 app.include_router(current_user_router)
 app.include_router(get_organization_router)
 app.include_router(auth_refresh_router)
+app.include_router(auth_logout_router)
 
 
 @app.get("/health")
