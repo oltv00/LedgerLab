@@ -201,6 +201,114 @@ def test_auth_refresh_rejects_replayed_refresh_token(
     assert response.status_code == 401
 
 
+def test_auth_refresh_rejects_access_token(
+    access_token: str,
+) -> None:
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": access_token},
+    )
+    assert response.status_code == 401
+
+
+def test_auth_refresh_rejects_expired_refresh_token(
+    jwt_secret: str,
+    refresh_token_payload: dict[str, Any],
+) -> None:
+    refresh_token_payload["exp"] = datetime.now(UTC) - timedelta(minutes=15)
+    refresh_token = jwt.encode(
+        payload=refresh_token_payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+
+    assert response.status_code == 401
+
+
+def test_auth_refresh_rejects_invalid_signature_refresh_token(
+    refresh_token_payload: dict[str, Any],
+) -> None:
+    refresh_token = jwt.encode(
+        payload=refresh_token_payload,
+        key="4747d7ef066d3a8c83fec3d9e4a75bfba1a7713b6aa6d7097f199de38e625a0a",
+        algorithm="HS256",
+    )
+
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_refresh_rejects_empty_refresh_token() -> None:
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": ""},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_refresh_rejects_null_refresh_token() -> None:
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": None},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_refresh_rejects_missing_refresh_token() -> None:
+    response = client.post(
+        "/auth/refresh",
+        json={},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_refresh_rejects_malformed_refresh_token() -> None:
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": "not-a-jwt"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_auth_refresh_rejects_unknown_refresh_token(
+    jwt_secret: str,
+    refresh_token_payload: dict[str, Any],
+) -> None:
+    refresh_token_payload["jti"] = str(uuid4())
+    refresh_token = jwt.encode(
+        payload=refresh_token_payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+
+    response = client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+
+    assert response.status_code == 401
+
+
+# --- Logout --- #
+
+
 def test_auth_logout_revokes_submitted_refresh_token(
     refresh_token: str,
     refresh_token_payload: dict[str, Any],
@@ -231,11 +339,112 @@ def test_auth_logout_rejects_access_token(
     assert response.status_code == 401
 
 
-def test_auth_refresh_rejects_access_token(
-    access_token: str,
+def test_auth_logout_rejects_replayed_refresh_token(
+    refresh_token: str,
 ) -> None:
     response = client.post(
-        "/auth/refresh",
-        json={"refresh_token": access_token},
+        "/auth/logout",
+        json={"refresh_token": refresh_token},
     )
+    assert response.status_code == 204
+
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+    assert response.status_code == 401
+
+
+def test_auth_logout_rejects_expired_refresh_token(
+    jwt_secret: str,
+    refresh_token_payload: dict[str, Any],
+) -> None:
+    refresh_token_payload["exp"] = datetime.now(UTC) - timedelta(minutes=15)
+    refresh_token = jwt.encode(
+        payload=refresh_token_payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+
+    assert response.status_code == 401
+
+
+def test_auth_logout_rejects_invalid_signature_refresh_token(
+    refresh_token_payload: dict[str, Any],
+) -> None:
+    refresh_token = jwt.encode(
+        payload=refresh_token_payload,
+        key="4747d7ef066d3a8c83fec3d9e4a75bfba1a7713b6aa6d7097f199de38e625a0a",
+        algorithm="HS256",
+    )
+
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_logout_rejects_empty_refresh_token() -> None:
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": ""},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_logout_rejects_null_refresh_token() -> None:
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": None},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_logout_rejects_missing_refresh_token() -> None:
+    response = client.post(
+        "/auth/logout",
+        json={},
+    )
+
+    assert response.status_code == 401
+
+
+@pytest.mark.usefixtures("jwt_secret")
+def test_auth_logout_rejects_malformed_refresh_token() -> None:
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": "not-a-jwt"},
+    )
+
+    assert response.status_code == 401
+
+
+def test_auth_logout_rejects_unknown_refresh_token(
+    jwt_secret: str,
+    refresh_token_payload: dict[str, Any],
+) -> None:
+    refresh_token_payload["jti"] = str(uuid4())
+    refresh_token = jwt.encode(
+        payload=refresh_token_payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+
+    response = client.post(
+        "/auth/logout",
+        json={"refresh_token": refresh_token},
+    )
+
     assert response.status_code == 401
