@@ -5,7 +5,7 @@ description = "Multi-tenant payment-operations sandbox API"
 authors = [
     { name = "oltv00", email = "oltv00@gmail.com" }
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "email-validator>=2.3.0",
     "fastapi>=0.141.1",
