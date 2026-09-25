@@ -17,7 +17,8 @@ POST /auth/login
 
 ```json
 {
-    "access_token": "<JWT_bearer_access_token>"
+    "access_token": "<JWT_bearer_access_token>",
+    "refresh_token": "<JWT_bearer_refresh_token>"
 }
 ```
 

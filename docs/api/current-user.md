@@ -22,6 +22,7 @@ Authorization: Bearer <JWT_bearer_access_token>
 
 ## Rules
 
+- accept only "access" token, otherwise returns 401 Unauthorized
 - missing access token -> 401 Unauthorized
 - malformed access token -> 401 Unauthorized
 - expired access token -> 401 Unauthorized

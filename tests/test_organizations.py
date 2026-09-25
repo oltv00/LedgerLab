@@ -61,6 +61,7 @@ def authenticated_headers(
     payload = {
         "sub": str(authenticated_user_id),
         "exp": exp,
+        "typ": "access",
     }
     access_token = jwt.encode(
         payload=payload,

@@ -1,10 +1,12 @@
 from collections.abc import Generator
+from datetime import UTC, datetime
 from uuid import UUID
 
 import jwt
 import pytest
 from fastapi.testclient import TestClient
 from pwdlib import PasswordHash
+from sqlalchemy import text
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
@@ -46,7 +48,7 @@ def user_without_password_hash_email() -> Generator[str]:
     yield user.email
 
 
-def test_login_returns_access_token(
+def test_login_returns_access_and_refresh_tokens(
     registered_user_id: UUID,
     jwt_secret: str,
 ) -> None:
@@ -59,15 +61,64 @@ def test_login_returns_access_token(
     )
 
     assert response.status_code == 200
+
     access_token = response.json()["access_token"]
-    claims = jwt.decode(
+    refresh_token = response.json()["refresh_token"]
+
+    algorithms = ["HS256"]
+
+    access_token_claims = jwt.decode(
         access_token,
         key=jwt_secret,
-        algorithms=["HS256"],
-        options={"require": ["sub", "exp"]},
+        algorithms=algorithms,
+        options={"require": ["sub", "exp", "typ"]},
     )
-    assert claims["sub"] == str(registered_user_id)
-    assert "exp" in claims
+
+    refresh_token_claims = jwt.decode(
+        refresh_token,
+        key=jwt_secret,
+        algorithms=algorithms,
+        options={"require": ["sub", "exp", "typ", "jti"]},
+    )
+
+    assert access_token_claims["sub"] == str(registered_user_id)
+    assert refresh_token_claims["sub"] == str(registered_user_id)
+
+    assert "exp" in access_token_claims
+    assert "exp" in refresh_token_claims
+
+    assert access_token_claims["typ"] == "access"
+    assert refresh_token_claims["typ"] == "refresh"
+
+    assert len(refresh_token_claims["jti"]) != 0
+
+    jti = refresh_token_claims["jti"]
+
+    with session_factory() as session:
+        persisted_refresh_token = (
+            session.execute(
+                text(
+                    "SELECT user_id, jti, expires_at, revoked_at "
+                    "FROM refresh_tokens "
+                    "WHERE jti = :jti"
+                ),
+                {
+                    "jti": jti,
+                },
+            )
+            .mappings()
+            .one()
+        )
+
+        assert persisted_refresh_token["jti"] == UUID(jti)
+        assert persisted_refresh_token["user_id"] == registered_user_id
+
+        expires_at = datetime.fromtimestamp(
+            refresh_token_claims["exp"],
+            UTC,
+        )
+        assert persisted_refresh_token["expires_at"] == expires_at
+        assert persisted_refresh_token["revoked_at"] is None
 
 
 @pytest.mark.usefixtures("registered_user_id")

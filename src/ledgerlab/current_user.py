@@ -40,13 +40,19 @@ def get_authenticated_user(
             jwt=access_token,
             key=os.environ["JWT_SECRET"],
             algorithms=["HS256"],
-            options={"require": ["sub", "exp"]},
+            options={"require": ["sub", "exp", "typ"]},
         )
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=401,
             detail="Credentials are invalid",
         ) from None
+
+    if payload["typ"] != "access":
+        raise HTTPException(
+            status_code=401,
+            detail="Credentials are invalid",
+        )
 
     try:
         user_id = UUID(payload["sub"])

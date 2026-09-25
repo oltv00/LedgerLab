@@ -19,9 +19,8 @@ def jwt_secret(monkeypatch: pytest.MonkeyPatch) -> str:
     return secret
 
 
-def test_current_user(
-    jwt_secret: str,
-) -> None:
+@pytest.fixture
+def user() -> User:
     with session_factory() as session:
         user = User(
             name="user_name_value",
@@ -30,11 +29,46 @@ def test_current_user(
         session.add(user)
         session.commit()
         session.refresh(user)
+    return user
 
+
+@pytest.fixture
+def refresh_token(
+    jwt_secret: str,
+    user: User,
+) -> str:
+    exp = datetime.now(UTC) + timedelta(days=7)
+    payload = {
+        "sub": str(user.id),
+        "exp": exp,
+        "typ": "refresh",
+        "jti": str(uuid4()),
+    }
+    refresh_token = jwt.encode(
+        payload=payload,
+        key=jwt_secret,
+        algorithm="HS256",
+    )
+    return refresh_token
+
+
+@pytest.fixture
+def refresh_token_headers(refresh_token: str) -> dict[str, str]:
+    headers = {
+        "Authorization": f"Bearer {refresh_token}",
+    }
+    return headers
+
+
+def test_current_user(
+    jwt_secret: str,
+    user: User,
+) -> None:
     exp = datetime.now(UTC) + timedelta(minutes=1)
     payload = {
         "sub": str(user.id),
         "exp": exp,
+        "typ": "access",
     }
     access_token = jwt.encode(
         payload=payload,
@@ -118,16 +152,8 @@ def test_current_user_rejects_unknown_user(
 
 def test_current_user_rejects_expired_token(
     jwt_secret: str,
+    user: User,
 ) -> None:
-    with session_factory() as session:
-        user = User(
-            name="user_name_value",
-            email="email_value@domain.com",
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-
     exp = datetime.now(UTC) - timedelta(minutes=1)
     payload = {
         "sub": str(user.id),
@@ -162,16 +188,9 @@ def test_current_user_rejects_not_a_jwt_in_header() -> None:
 
 
 @pytest.mark.usefixtures("jwt_secret")
-def test_current_user_rejects_token_with_invalid_signature() -> None:
-    with session_factory() as session:
-        user = User(
-            name="user_name_value",
-            email="email_value@domain.com",
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-
+def test_current_user_rejects_token_with_invalid_signature(
+    user: User,
+) -> None:
     exp = datetime.now(UTC) + timedelta(minutes=1)
     payload = {
         "sub": str(user.id),
@@ -190,4 +209,14 @@ def test_current_user_rejects_token_with_invalid_signature() -> None:
         },
     )
 
+    assert response.status_code == 401
+
+
+def test_current_user_rejects_refresh_token(
+    refresh_token_headers: dict[str, str],
+) -> None:
+    response = client.get(
+        "/auth/me",
+        headers=refresh_token_headers,
+    )
     assert response.status_code == 401

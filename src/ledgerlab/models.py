@@ -119,3 +119,28 @@ class OrganizationMembership(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    jti: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+    revoked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )

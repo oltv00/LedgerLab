@@ -97,6 +97,7 @@ def admin_authenticated_headers(
     payload = {
         "sub": str(admin_user_id),
         "exp": exp,
+        "typ": "access",
     }
     access_token = jwt.encode(
         payload=payload,
@@ -125,6 +126,7 @@ def operator_authenticated_headers(
     payload = {
         "sub": str(operator_user_id),
         "exp": exp,
+        "typ": "access",
     }
     access_token = jwt.encode(
         payload=payload,
