@@ -1,11 +1,16 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Event
 from typing import Any
 from uuid import UUID, uuid4
 
 import jwt
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
+from ledgerlab.auth.auth_refresh import AuthRefreshRequest, get_refresh_token
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
 from ledgerlab.models import RefreshToken, User
@@ -304,6 +309,49 @@ def test_auth_refresh_rejects_unknown_refresh_token(
     )
 
     assert response.status_code == 401
+
+
+def test_auth_refresh_token_lock_prevents_concurrent_validation(
+    refresh_token: str,
+) -> None:
+    first_lock_acquired = Event()
+    release_first_lock = Event()
+
+    def hold_first_lock() -> None:
+        with session_factory() as session:
+            get_refresh_token(
+                request=AuthRefreshRequest(refresh_token=refresh_token),
+                database_session=session,
+            )
+            first_lock_acquired.set()
+            release_first_lock.wait()
+            session.rollback()
+
+    def try_to_acquire_second_lock() -> RefreshToken:
+        with session_factory() as session:
+            session.execute(
+                text("SET LOCAL lock_timeout = '100ms'"),
+            )
+            return get_refresh_token(
+                request=AuthRefreshRequest(refresh_token=refresh_token),
+                database_session=session,
+            )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first_future = executor.submit(hold_first_lock)
+
+        try:
+            assert first_lock_acquired.wait(timeout=1)
+
+            second_future = executor.submit(try_to_acquire_second_lock)
+
+            with pytest.raises(OperationalError):
+                second_future.result(timeout=1)
+
+        finally:
+            release_first_lock.set()
+
+        first_future.result(timeout=1)
 
 
 # --- Logout --- #
