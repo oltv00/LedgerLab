@@ -45,4 +45,11 @@ Response
 
 ## Errors
 
-Status: 401 Unauthorized for missing, malformed, expired, wrong-type, unknown, revoked, or already-rotated refresh tokens.
+401 Unauthorized:
+- missing refresh_token field in a valid JSON object
+- null, empty, malformed JWT, expired, wrong-type, unknown, revoked, or replayed refresh token
+
+422 Unprocessable Entity:
+- missing request body
+- invalid JSON body
+- refresh_token has a non-string JSON value
