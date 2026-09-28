@@ -7,12 +7,19 @@ import pytest
 from sqlalchemy import delete
 
 from ledgerlab.database import session_factory
-from ledgerlab.models import Organization, OrganizationMembership, RefreshToken, User
+from ledgerlab.models import (
+    Account,
+    Organization,
+    OrganizationMembership,
+    RefreshToken,
+    User,
+)
 
 
 @pytest.fixture(autouse=True)
 def reset_database() -> Generator[None]:
     with session_factory() as session:
+        session.execute(delete(Account))
         session.execute(delete(RefreshToken))
         session.execute(delete(OrganizationMembership))
         session.execute(delete(User))
@@ -22,6 +29,7 @@ def reset_database() -> Generator[None]:
     yield
 
     with session_factory() as session:
+        session.execute(delete(Account))
         session.execute(delete(RefreshToken))
         session.execute(delete(OrganizationMembership))
         session.execute(delete(User))

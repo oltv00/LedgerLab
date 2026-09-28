@@ -144,3 +144,29 @@ class RefreshToken(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("organizations.id"),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
