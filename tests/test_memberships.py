@@ -1,8 +1,7 @@
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime
 from uuid import UUID
 
-import jwt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select, text
@@ -12,13 +11,6 @@ from ledgerlab.main import app
 from ledgerlab.models import Organization, OrganizationMembership, User
 
 client = TestClient(app)
-
-
-@pytest.fixture
-def jwt_secret(monkeypatch: pytest.MonkeyPatch) -> str:
-    secret = "15070f2063b42247ed95726766fdadc2058e3b3235b9ca752277e733d27f270e"
-    monkeypatch.setenv("JWT_SECRET", secret)
-    return secret
 
 
 @pytest.fixture
@@ -34,117 +26,14 @@ def new_user_id() -> UUID:
     return user.id
 
 
-@pytest.fixture
-def admin_user_id() -> UUID:
-    with session_factory() as session:
-        user = User(
-            name="admin_user_name_value",
-            email="admin_email_value@domain.com",
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-    return user.id
-
-
-@pytest.fixture
-def operator_user_id() -> UUID:
-    with session_factory() as session:
-        user = User(
-            name="operator_user_name_value",
-            email="operator_email_value@domain.com",
-        )
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-    return user.id
-
-
-@pytest.fixture
-def create_organization_id() -> Callable[[str], UUID]:
-    def create(name: str) -> UUID:
-        with session_factory() as session:
-            organization = Organization(name=name)
-            session.add(organization)
-            session.commit()
-            session.refresh(organization)
-        return organization.id
-
-    return create
-
-
-@pytest.fixture
-def organization_id(create_organization_id) -> UUID:
-    return create_organization_id("organization_name_value")
-
-
-@pytest.fixture
-def admin_authenticated_headers(
-    jwt_secret: str,
-    admin_user_id: UUID,
-    organization_id: UUID,
-) -> dict[str, str]:
-    with session_factory() as session:
-        organization_membership = OrganizationMembership(
-            organization_id=organization_id,
-            user_id=admin_user_id,
-            role="admin",
-        )
-        session.add(organization_membership)
-        session.commit()
-
-    exp = datetime.now(UTC) + timedelta(minutes=1)
-    payload = {
-        "sub": str(admin_user_id),
-        "exp": exp,
-        "typ": "access",
-    }
-    access_token = jwt.encode(
-        payload=payload,
-        key=jwt_secret,
-        algorithm="HS256",
-    )
-    return {"Authorization": f"Bearer {access_token}"}
-
-
-@pytest.fixture
-def operator_authenticated_headers(
-    jwt_secret: str,
-    operator_user_id: UUID,
-    organization_id: UUID,
-) -> dict[str, str]:
-    with session_factory() as session:
-        organization_membership = OrganizationMembership(
-            organization_id=organization_id,
-            user_id=operator_user_id,
-            role="operator",
-        )
-        session.add(organization_membership)
-        session.commit()
-
-    exp = datetime.now(UTC) + timedelta(minutes=1)
-    payload = {
-        "sub": str(operator_user_id),
-        "exp": exp,
-        "typ": "access",
-    }
-    access_token = jwt.encode(
-        payload=payload,
-        key=jwt_secret,
-        algorithm="HS256",
-    )
-    return {"Authorization": f"Bearer {access_token}"}
-
-
 def test_create_organization_membership_persists_membership(
-    admin_authenticated_headers: dict[str, str],
+    admin_access_token_headers: dict[str, str],
     organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
-
     response = client.post(
         f"/organizations/{organization_id}/memberships",
-        headers=admin_authenticated_headers,
+        headers=admin_access_token_headers,
         json={"user_id": str(new_user_id)},
     )
 
@@ -178,14 +67,14 @@ def test_create_organization_membership_persists_membership(
 
 
 def test_create_organization_membership_rejects_unknown_organization(
-    admin_authenticated_headers: dict[str, str],
+    admin_access_token_headers: dict[str, str],
     new_user_id: UUID,
 ) -> None:
     organization_id = UUID("12345678-1234-5678-1234-567812345678")
 
     response = client.post(
         f"/organizations/{organization_id}/memberships",
-        headers=admin_authenticated_headers,
+        headers=admin_access_token_headers,
         json={"user_id": str(new_user_id)},
     )
 
@@ -193,14 +82,14 @@ def test_create_organization_membership_rejects_unknown_organization(
 
 
 def test_create_organization_membership_rejects_unknown_user(
-    admin_authenticated_headers: dict[str, str],
+    admin_access_token_headers: dict[str, str],
     organization_id: UUID,
 ) -> None:
     user_id = UUID("12345678-1234-5678-1234-567812345678")
 
     response = client.post(
         f"/organizations/{organization_id}/memberships",
-        headers=admin_authenticated_headers,
+        headers=admin_access_token_headers,
         json={"user_id": str(user_id)},
     )
 
@@ -208,7 +97,7 @@ def test_create_organization_membership_rejects_unknown_user(
 
 
 def test_create_organization_membership_rejects_duplicate_membership(
-    admin_authenticated_headers: dict[str, str],
+    admin_access_token_headers: dict[str, str],
     organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
@@ -222,7 +111,7 @@ def test_create_organization_membership_rejects_duplicate_membership(
 
     response = client.post(
         f"/organizations/{organization_id}/memberships",
-        headers=admin_authenticated_headers,
+        headers=admin_access_token_headers,
         json={"user_id": str(new_user_id)},
     )
 
@@ -246,13 +135,13 @@ def test_create_organization_membership_rejects_duplicate_membership(
 
 
 def test_create_organization_membership_assigns_operator_role(
-    admin_authenticated_headers: dict[str, str],
+    admin_access_token_headers: dict[str, str],
     organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
     response = client.post(
         f"/organizations/{organization_id}/memberships",
-        headers=admin_authenticated_headers,
+        headers=admin_access_token_headers,
         json={"user_id": str(new_user_id)},
     )
 
@@ -295,13 +184,13 @@ def test_create_organization_membership_rejects_request_without_access_token() -
 
 
 def test_create_organization_membership_rejects_for_operator_role(
-    operator_authenticated_headers: dict[str, str],
+    operator_access_token_headers: dict[str, str],
     organization_id: UUID,
     new_user_id: UUID,
 ) -> None:
     response = client.post(
         f"/organizations/{organization_id}/memberships",
-        headers=operator_authenticated_headers,
+        headers=operator_access_token_headers,
         json={"user_id": str(new_user_id)},
     )
 
@@ -325,7 +214,7 @@ def test_create_organization_membership_rejects_for_operator_role(
 
 
 def test_create_organization_membership_rejects_for_admin_from_another_tenant(
-    admin_authenticated_headers: dict[str, str],
+    admin_access_token_headers: dict[str, str],
     create_organization_id: Callable[[str], UUID],
     new_user_id: UUID,
 ) -> None:
@@ -333,7 +222,7 @@ def test_create_organization_membership_rejects_for_admin_from_another_tenant(
 
     response = client.post(
         f"/organizations/{target_organization_id}/memberships",
-        headers=admin_authenticated_headers,
+        headers=admin_access_token_headers,
         json={"user_id": str(new_user_id)},
     )
 
