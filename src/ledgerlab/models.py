@@ -170,3 +170,71 @@ class Account(Base):
         nullable=False,
         server_default=func.now(),
     )
+
+
+class Transfer(Base):
+    __tablename__ = "transfers"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("organizations.id"),
+        nullable=False,
+    )
+
+    source_account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("accounts.id"),
+        nullable=False,
+    )
+
+    destination_account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("accounts.id"),
+        nullable=False,
+    )
+
+    amount_minor: Mapped[int] = mapped_column(
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class LedgerEntry(Base):
+    __tablename__ = "ledger_entries"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    transfer_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("transfers.id"),
+        nullable=False,
+    )
+
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("accounts.id"),
+        nullable=False,
+    )
+
+    amount_minor: Mapped[int] = mapped_column(
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )

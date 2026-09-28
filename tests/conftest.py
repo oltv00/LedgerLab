@@ -9,9 +9,11 @@ from sqlalchemy import delete
 from ledgerlab.database import session_factory
 from ledgerlab.models import (
     Account,
+    LedgerEntry,
     Organization,
     OrganizationMembership,
     RefreshToken,
+    Transfer,
     User,
 )
 
@@ -19,6 +21,8 @@ from ledgerlab.models import (
 @pytest.fixture(autouse=True)
 def reset_database() -> Generator[None]:
     with session_factory() as session:
+        session.execute(delete(LedgerEntry))
+        session.execute(delete(Transfer))
         session.execute(delete(Account))
         session.execute(delete(RefreshToken))
         session.execute(delete(OrganizationMembership))
@@ -29,6 +33,8 @@ def reset_database() -> Generator[None]:
     yield
 
     with session_factory() as session:
+        session.execute(delete(LedgerEntry))
+        session.execute(delete(Transfer))
         session.execute(delete(Account))
         session.execute(delete(RefreshToken))
         session.execute(delete(OrganizationMembership))
