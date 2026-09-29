@@ -1,8 +1,8 @@
 """add transfers and ledger_entries tables
 
-Revision ID: e005a339445a
+Revision ID: 222a9ab7b0dc
 Revises: 625c30c5ddfe
-Create Date: 2026-09-28 13:24:07.431464
+Create Date: 2026-09-29 15:58:11.938957
 
 """
 
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "e005a339445a"
+revision: str = "222a9ab7b0dc"
 down_revision: str | Sequence[str] | None = "625c30c5ddfe"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -33,6 +33,13 @@ def upgrade() -> None:
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
+        ),
+        sa.CheckConstraint(
+            "amount_minor > 0", name="ck_transfers_amount_minor_positive"
+        ),
+        sa.CheckConstraint(
+            "source_account_id <> destination_account_id",
+            name="ck_transfers_source_account_id_not_equal_destination_account_id",
         ),
         sa.ForeignKeyConstraint(
             ["destination_account_id"],

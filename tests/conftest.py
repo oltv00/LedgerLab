@@ -116,6 +116,37 @@ def operator_access_token_headers(
     return {"Authorization": f"Bearer {access_token}"}
 
 
+@pytest.fixture
+def operator_access_token_headers_with_custom_organization_id(
+    jwt_secret: str,
+    operator_user_id: UUID,
+) -> Callable[[UUID], dict[str, str]]:
+    def make_headers(organization_id: UUID) -> dict[str, str]:
+        with session_factory() as session:
+            organization_membership = OrganizationMembership(
+                organization_id=organization_id,
+                user_id=operator_user_id,
+                role="operator",
+            )
+            session.add(organization_membership)
+            session.commit()
+
+        exp = datetime.now(UTC) + timedelta(minutes=1)
+        payload = {
+            "sub": str(operator_user_id),
+            "exp": exp,
+            "typ": "access",
+        }
+        access_token = jwt.encode(
+            payload=payload,
+            key=jwt_secret,
+            algorithm="HS256",
+        )
+        return {"Authorization": f"Bearer {access_token}"}
+
+    return make_headers
+
+
 ### Admin ###
 
 

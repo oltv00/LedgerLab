@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -44,6 +45,27 @@ def destination_account_id(
         session.refresh(account)
 
     return account.id
+
+
+@pytest.fixture
+def account_id_with_custom_organization_id() -> Callable[[str, UUID], UUID]:
+    def make_account_id(
+        account_name: str,
+        organization_id: UUID,
+    ) -> UUID:
+        with session_factory() as session:
+            account = Account(
+                id=uuid4(),
+                name=account_name,
+                organization_id=organization_id,
+            )
+            session.add(account)
+            session.commit()
+            session.refresh(account)
+
+        return account.id
+
+    return make_account_id
 
 
 def test_transfers_create_transfer(
@@ -172,3 +194,143 @@ def test_transfers_create_transfer(
         )
         assert database_ledger_source["created_at"].tzinfo is not None
         assert database_ledger_destination["created_at"].tzinfo is not None
+
+
+def test_transfers_rejects_no_access_token(
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_transfers_rejects_operator_from_another_organization(
+    operator_access_token_headers_with_custom_organization_id: Callable[
+        [UUID], dict[str, str]
+    ],
+    create_organization_id: Callable[[str], UUID],
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    organization_id = create_organization_id("new_organization_name")
+    headers = operator_access_token_headers_with_custom_organization_id(organization_id)
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 403
+
+
+def test_transfers_rejects_source_account_id_outside_target_organization(
+    operator_access_token_headers: dict[str, str],
+    destination_account_id: UUID,
+    create_organization_id: Callable[[str], UUID],
+    account_id_with_custom_organization_id: Callable[[str, UUID], UUID],
+) -> None:
+    organization_id = create_organization_id("new_organization_name")
+    source_account_id = account_id_with_custom_organization_id(
+        "source_account_name", organization_id
+    )
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 403
+
+
+def test_transfers_rejects_destination_account_id_outside_target_organization(
+    operator_access_token_headers: dict[str, str],
+    source_account_id: UUID,
+    create_organization_id: Callable[[str], UUID],
+    account_id_with_custom_organization_id: Callable[[str, UUID], UUID],
+) -> None:
+    organization_id = create_organization_id("new_organization_name")
+    destination_account_id = account_id_with_custom_organization_id(
+        "destination_account_name", organization_id
+    )
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 403
+
+
+def test_transfers_rejects_equal_accounts_id(
+    operator_access_token_headers: dict[str, str],
+    source_account_id: UUID,
+    organization_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(source_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_transfers_rejects_amount_minor_equal_zero(
+    operator_access_token_headers: dict[str, str],
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 0,
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_transfers_rejects_amount_minor_less_than_zero(
+    operator_access_token_headers: dict[str, str],
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": -1,
+        },
+    )
+    assert response.status_code == 422

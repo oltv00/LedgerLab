@@ -2,20 +2,28 @@ from datetime import datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ledgerlab.current_user import get_authenticated_user
 from ledgerlab.database import get_session
-from ledgerlab.models import LedgerEntry, Transfer
+from ledgerlab.models import (
+    Account,
+    LedgerEntry,
+    OrganizationMembership,
+    Transfer,
+    User,
+)
 
 router = APIRouter()
 
 
-class TransferReuqest(BaseModel):
+class TransferRequest(BaseModel):
     source_account_id: UUID
     destination_account_id: UUID
-    amount_minor: int
+    amount_minor: Annotated[int, Field(gt=0)]
 
 
 class TransferResponse(BaseModel):
@@ -34,9 +42,68 @@ class TransferResponse(BaseModel):
 )
 def create_transfer(
     database_session: Annotated[Session, Depends(get_session)],
-    request: TransferReuqest,
+    current_user: Annotated[User, Depends(get_authenticated_user)],
+    request: TransferRequest,
     organization_id: UUID,
 ) -> TransferResponse:
+
+    membership = database_session.execute(
+        select(OrganizationMembership).where(
+            OrganizationMembership.organization_id == organization_id,
+            OrganizationMembership.user_id == current_user.id,
+        )
+    ).scalar_one_or_none()
+
+    if membership is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
+    if membership.role not in ["admin", "operator"]:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
+    if request.source_account_id == request.destination_account_id:
+        raise HTTPException(
+            status_code=422,
+            detail="Source and destination accounts must differ",
+        )
+
+    source_account = database_session.get(Account, request.source_account_id)
+    if source_account is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
+    destination_account = database_session.get(Account, request.destination_account_id)
+    if destination_account is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
+    if source_account.organization_id != destination_account.organization_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
+    if membership.organization_id != source_account.organization_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
+    if membership.organization_id != destination_account.organization_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Request is forbidden",
+        )
+
     transfer_id = uuid4()
     transfer = Transfer(
         id=transfer_id,

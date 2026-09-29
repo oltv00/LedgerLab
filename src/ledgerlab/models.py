@@ -175,6 +175,17 @@ class Account(Base):
 class Transfer(Base):
     __tablename__ = "transfers"
 
+    __table_args__ = (
+        CheckConstraint(
+            "amount_minor > 0",
+            name="ck_transfers_amount_minor_positive",
+        ),
+        CheckConstraint(
+            "source_account_id <> destination_account_id",
+            name="ck_transfers_source_account_id_not_equal_destination_account_id",
+        ),
+    )
+
     id: Mapped[UUID] = mapped_column(
         Uuid,
         primary_key=True,
