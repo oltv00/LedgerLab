@@ -10,6 +10,7 @@ from ledgerlab.create_user import router as user_router
 from ledgerlab.current_user import router as current_user_router
 from ledgerlab.get_organization import router as get_organization_router
 from ledgerlab.organizations.accounts import router as accounts_router
+from ledgerlab.organizations.transfers import router as transfers_router
 
 app = FastAPI()
 app.include_router(organization_router)
@@ -22,6 +23,7 @@ app.include_router(get_organization_router)
 app.include_router(auth_refresh_router)
 app.include_router(auth_logout_router)
 app.include_router(accounts_router)
+app.include_router(transfers_router)
 
 
 @app.get("/health")
