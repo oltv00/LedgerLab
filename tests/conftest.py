@@ -4,16 +4,12 @@ from uuid import UUID
 
 import jwt
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import text
 
 from ledgerlab.database import session_factory
 from ledgerlab.models import (
-    Account,
-    LedgerEntry,
     Organization,
     OrganizationMembership,
-    RefreshToken,
-    Transfer,
     User,
 )
 
@@ -21,25 +17,25 @@ from ledgerlab.models import (
 @pytest.fixture(autouse=True)
 def reset_database() -> Generator[None]:
     with session_factory() as session:
-        session.execute(delete(LedgerEntry))
-        session.execute(delete(Transfer))
-        session.execute(delete(Account))
-        session.execute(delete(RefreshToken))
-        session.execute(delete(OrganizationMembership))
-        session.execute(delete(User))
-        session.execute(delete(Organization))
+        session.execute(
+            text(
+                "TRUNCATE TABLE "
+                "ledger_entries, transfers, accounts, refresh_tokens, "
+                "organization_memberships, users, organizations"
+            )
+        )
         session.commit()
 
     yield
 
     with session_factory() as session:
-        session.execute(delete(LedgerEntry))
-        session.execute(delete(Transfer))
-        session.execute(delete(Account))
-        session.execute(delete(RefreshToken))
-        session.execute(delete(OrganizationMembership))
-        session.execute(delete(User))
-        session.execute(delete(Organization))
+        session.execute(
+            text(
+                "TRUNCATE TABLE "
+                "ledger_entries, transfers, accounts, refresh_tokens, "
+                "organization_memberships, users, organizations"
+            )
+        )
         session.commit()
 
 

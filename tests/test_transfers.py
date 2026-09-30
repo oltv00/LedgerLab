@@ -5,12 +5,12 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.testclient import TestClient
 from psycopg.errors import CheckViolation, ForeignKeyViolation
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 from ledgerlab.database import session_factory
 from ledgerlab.main import app
-from ledgerlab.models import Account, Transfer
+from ledgerlab.models import Account, LedgerEntry, Transfer
 
 client = TestClient(app=app)
 
@@ -517,3 +517,90 @@ def test_transfers_database_rejects_destination_account_id_outside_organization(
             error.orig.diag.constraint_name
             == "fk_transfers_destination_account_belongs_organization"
         )
+
+
+def test_transfers_database_rejects_ledger_entry_update(
+    organization_id: UUID,
+    operator_access_token_headers: dict[str, str],
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 201
+
+    transfer_id = response.json()["id"]
+    with session_factory() as session:
+        ledger_entry = session.execute(
+            select(LedgerEntry).where(
+                LedgerEntry.transfer_id == transfer_id,
+            )
+        ).scalar()
+
+        assert ledger_entry is not None
+
+        with pytest.raises(IntegrityError) as exception_info:
+            session.execute(
+                text(
+                    "UPDATE ledger_entries "
+                    "SET amount_minor = :amount_minor "
+                    "WHERE id = :ledger_entry_id"
+                ),
+                {
+                    "amount_minor": 999,
+                    "ledger_entry_id": ledger_entry.id,
+                },
+            )
+
+        error = exception_info.value
+        assert isinstance(error.orig, CheckViolation)
+        assert error.orig.diag.constraint_name == "ck_ledger_entries_immutable"
+
+
+def test_transfers_database_rejects_ledger_entry_delete(
+    organization_id: UUID,
+    operator_access_token_headers: dict[str, str],
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 201
+
+    transfer_id = response.json()["id"]
+    with session_factory() as session:
+        ledger_entry = session.execute(
+            select(LedgerEntry).where(
+                LedgerEntry.transfer_id == transfer_id,
+            )
+        ).scalar()
+
+        assert ledger_entry is not None
+
+        with pytest.raises(IntegrityError) as exception_info:
+            session.execute(
+                text("DELETE FROM ledger_entries WHERE id = :ledger_entry_id"),
+                {
+                    "ledger_entry_id": ledger_entry.id,
+                },
+            )
+
+        error = exception_info.value
+        assert isinstance(error.orig, CheckViolation)
+        assert error.orig.diag.constraint_name == "ck_ledger_entries_immutable"
