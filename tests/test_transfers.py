@@ -380,6 +380,33 @@ def test_transfers_rejects_amount_minor_less_than_zero(
     assert response.status_code == 422
 
 
+@pytest.mark.parametrize(
+    "amount_minor",
+    [
+        "1000",
+        1000.0,
+        True,
+    ],
+)
+def test_transfers_rejects_non_integer_amount_minor_value(
+    amount_minor: object,
+    operator_access_token_headers: dict[str, str],
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": amount_minor,
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_database_rejects_amount_minor_equal_zero(
     organization_id: UUID,
     source_account_id: UUID,

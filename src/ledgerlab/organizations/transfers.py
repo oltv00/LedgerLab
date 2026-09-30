@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictInt
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,7 +23,7 @@ router = APIRouter()
 class TransferRequest(BaseModel):
     source_account_id: UUID
     destination_account_id: UUID
-    amount_minor: Annotated[int, Field(gt=0)]
+    amount_minor: Annotated[StrictInt, Field(gt=0)]
 
 
 class TransferResponse(BaseModel):
