@@ -5,6 +5,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     String,
     UniqueConstraint,
     Uuid,
@@ -149,6 +150,12 @@ class RefreshToken(Base):
 class Account(Base):
     __tablename__ = "accounts"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "id", name="uq_accounts_organization_id_id"
+        ),
+    )
+
     id: Mapped[UUID] = mapped_column(
         Uuid,
         primary_key=True,
@@ -184,6 +191,16 @@ class Transfer(Base):
             "source_account_id <> destination_account_id",
             name="ck_transfers_source_account_id_not_equal_destination_account_id",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "source_account_id"],
+            ["accounts.organization_id", "accounts.id"],
+            name="fk_transfers_source_account_belongs_organization",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "destination_account_id"],
+            ["accounts.organization_id", "accounts.id"],
+            name="fk_transfers_destination_account_belongs_organization",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(
@@ -199,13 +216,11 @@ class Transfer(Base):
 
     source_account_id: Mapped[UUID] = mapped_column(
         Uuid,
-        ForeignKey("accounts.id"),
         nullable=False,
     )
 
     destination_account_id: Mapped[UUID] = mapped_column(
         Uuid,
-        ForeignKey("accounts.id"),
         nullable=False,
     )
 
