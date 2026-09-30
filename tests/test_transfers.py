@@ -604,3 +604,36 @@ def test_transfers_database_rejects_ledger_entry_delete(
         error = exception_info.value
         assert isinstance(error.orig, CheckViolation)
         assert error.orig.diag.constraint_name == "ck_ledger_entries_immutable"
+
+
+def test_transfers_database_rejects_transfer_without_ledger_entries(
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    with session_factory() as session:
+        transfer_id = uuid4()
+        transfer = Transfer(
+            id=transfer_id,
+            organization_id=organization_id,
+            source_account_id=source_account_id,
+            destination_account_id=destination_account_id,
+            amount_minor=1000,
+        )
+        session.add(transfer)
+
+        with pytest.raises(IntegrityError) as exception_info:
+            session.commit()
+
+    error = exception_info.value
+    assert isinstance(error.orig, CheckViolation)
+    assert error.orig.diag.constraint_name == "ck_transfers_exactly_two_ledger_entries"
+
+    with session_factory() as session:
+        persisted_transfer = session.execute(
+            select(Transfer).where(
+                Transfer.id == transfer_id,
+            )
+        ).scalar_one_or_none()
+
+    assert persisted_transfer is None
