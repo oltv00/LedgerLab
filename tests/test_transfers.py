@@ -637,3 +637,52 @@ def test_transfers_database_rejects_transfer_without_ledger_entries(
         ).scalar_one_or_none()
 
     assert persisted_transfer is None
+
+
+def test_transfers_database_rejects_third_ledger_entry(
+    organization_id: UUID,
+    operator_access_token_headers: dict[str, str],
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    response = client.post(
+        f"/organizations/{organization_id}/transfers",
+        headers=operator_access_token_headers,
+        json={
+            "source_account_id": str(source_account_id),
+            "destination_account_id": str(destination_account_id),
+            "amount_minor": 1000,
+        },
+    )
+
+    assert response.status_code == 201
+
+    with session_factory() as session:
+        transfer_id = UUID(response.json()["id"])
+        ledger_entry = LedgerEntry(
+            id=uuid4(),
+            transfer_id=transfer_id,
+            account_id=source_account_id,
+            amount_minor=1,
+        )
+        session.add(ledger_entry)
+
+        with pytest.raises(IntegrityError) as exception_error:
+            session.commit()
+
+    error = exception_error.value
+    assert isinstance(error.orig, CheckViolation)
+    assert error.orig.diag.constraint_name == "ck_transfers_exactly_two_ledger_entries"
+
+    with session_factory() as session:
+        ledger_entries = (
+            session.execute(
+                select(LedgerEntry).where(
+                    LedgerEntry.transfer_id == transfer_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    assert len(ledger_entries) == 2
