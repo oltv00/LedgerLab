@@ -70,6 +70,43 @@ def account_id_with_custom_organization_id() -> Callable[[str, UUID], UUID]:
     return make_account_id
 
 
+@pytest.fixture
+def transfer_id(
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> UUID:
+    with session_factory() as session:
+        transfer_id = uuid4()
+        transfer = Transfer(
+            id=transfer_id,
+            organization_id=organization_id,
+            source_account_id=source_account_id,
+            destination_account_id=destination_account_id,
+            amount_minor=1000,
+        )
+        session.add(transfer)
+        session.flush()
+
+        ledger_entry_source = LedgerEntry(
+            id=uuid4(),
+            transfer_id=transfer_id,
+            account_id=source_account_id,
+            amount_minor=-1000,
+        )
+
+        ledger_entry_destination = LedgerEntry(
+            id=uuid4(),
+            transfer_id=transfer_id,
+            account_id=destination_account_id,
+            amount_minor=1000,
+        )
+
+        session.add_all([ledger_entry_source, ledger_entry_destination])
+        session.commit()
+    return transfer_id
+
+
 def test_transfers_operator_create_transfer(
     operator_access_token_headers: dict[str, str],
     organization_id: UUID,
@@ -743,3 +780,40 @@ def test_transfers_database_rejects_pair_amounts_not_matching_transfer(
         )
 
         assert len(persisted_ledger_entries) == 0
+
+
+def test_transfers_database_rejects_transfer_amount_update(
+    transfer_id: UUID,
+) -> None:
+    with session_factory() as session, pytest.raises(IntegrityError) as exception_info:
+        session.execute(
+            text(
+                "UPDATE transfers "
+                "SET amount_minor = :amount_minor "
+                "WHERE id = :transfer_id"
+            ),
+            {
+                "amount_minor": 999,
+                "transfer_id": transfer_id,
+            },
+        )
+
+    error = exception_info.value
+    assert isinstance(error.orig, CheckViolation)
+    assert error.orig.diag.constraint_name == "ck_transfers_immutable"
+
+
+def test_transfers_database_rejects_transfer_delete(
+    transfer_id: UUID,
+) -> None:
+    with session_factory() as session, pytest.raises(IntegrityError) as exception_info:
+        session.execute(
+            text("DELETE FROM transfers WHERE id = :transfer_id"),
+            {
+                "transfer_id": transfer_id,
+            },
+        )
+
+    error = exception_info.value
+    assert isinstance(error.orig, CheckViolation)
+    assert error.orig.diag.constraint_name == "ck_transfers_immutable"
