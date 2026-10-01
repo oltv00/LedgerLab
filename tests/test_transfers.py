@@ -686,3 +686,60 @@ def test_transfers_database_rejects_third_ledger_entry(
         )
 
     assert len(ledger_entries) == 2
+
+
+def test_transfers_database_rejects_pair_amounts_not_matching_transfer(
+    organization_id: UUID,
+    source_account_id: UUID,
+    destination_account_id: UUID,
+) -> None:
+    with session_factory() as session:
+        transfer_id = uuid4()
+        transfer = Transfer(
+            id=transfer_id,
+            organization_id=organization_id,
+            source_account_id=source_account_id,
+            destination_account_id=destination_account_id,
+            amount_minor=1000,
+        )
+        session.add(transfer)
+        session.flush()
+
+        ledger_entry_source = LedgerEntry(
+            id=uuid4(),
+            transfer_id=transfer_id,
+            account_id=source_account_id,
+            amount_minor=-999,
+        )
+
+        ledger_entry_destination = LedgerEntry(
+            id=uuid4(),
+            transfer_id=transfer_id,
+            account_id=destination_account_id,
+            amount_minor=999,
+        )
+
+        session.add_all([ledger_entry_source, ledger_entry_destination])
+
+        with pytest.raises(IntegrityError) as exception_info:
+            session.commit()
+
+    error = exception_info.value
+    assert isinstance(error.orig, CheckViolation)
+    assert error.orig.diag.constraint_name == "ck_ledger_entries_match_transfer_amounts"
+
+    with session_factory() as session:
+        persisted_transfer = session.get(Transfer, transfer_id)
+        assert persisted_transfer is None
+
+        persisted_ledger_entries = (
+            session.execute(
+                select(LedgerEntry).where(
+                    LedgerEntry.transfer_id == transfer_id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        assert len(persisted_ledger_entries) == 0
