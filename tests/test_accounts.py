@@ -153,3 +153,19 @@ def test_accounts_reject_unknown_organization(
         },
     )
     assert response.status_code == 403
+
+
+def test_accounts_rejects_account_name_longer_than_255_characters(
+    admin_access_token_headers: dict[str, str],
+    organization_id: UUID,
+) -> None:
+    account_name = "a" * 256
+    response = client.post(
+        f"/organizations/{organization_id}/accounts",
+        headers=admin_access_token_headers,
+        json={
+            "name": account_name,
+        },
+    )
+
+    assert response.status_code == 422

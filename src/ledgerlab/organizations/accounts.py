@@ -19,6 +19,7 @@ class AccountsRequest(BaseModel):
         str,
         StringConstraints(
             min_length=1,
+            max_length=255,
             strip_whitespace=True,
         ),
     ]

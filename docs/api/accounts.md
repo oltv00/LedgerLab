@@ -38,9 +38,11 @@ Rules
 - belongs to exactly one organization;
 - has an ID and human-readable name;
 - balance is derived from immutable ledger entries, not stored as a mutable account balance.
+- name is trimmed and must contain 1–255 characters after trimming.
 
 Errors
 
 - no valid access token → 401
 - authenticated caller without target-org membership or required role → 403
 - empty/whitespace-only name → 422
+- name longer than 255 characters → 422
