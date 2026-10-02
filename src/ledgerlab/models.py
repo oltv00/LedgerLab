@@ -5,6 +5,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     String,
     UniqueConstraint,
     Uuid,
@@ -143,4 +144,123 @@ class RefreshToken(Base):
     revoked_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+
+class Account(Base):
+    __tablename__ = "accounts"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id", "id", name="uq_accounts_organization_id_id"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("organizations.id"),
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class Transfer(Base):
+    __tablename__ = "transfers"
+
+    __table_args__ = (
+        CheckConstraint(
+            "amount_minor > 0",
+            name="ck_transfers_amount_minor_positive",
+        ),
+        CheckConstraint(
+            "source_account_id <> destination_account_id",
+            name="ck_transfers_source_account_id_not_equal_destination_account_id",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "source_account_id"],
+            ["accounts.organization_id", "accounts.id"],
+            name="fk_transfers_source_account_belongs_organization",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "destination_account_id"],
+            ["accounts.organization_id", "accounts.id"],
+            name="fk_transfers_destination_account_belongs_organization",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("organizations.id"),
+        nullable=False,
+    )
+
+    source_account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+    )
+
+    destination_account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+    )
+
+    amount_minor: Mapped[int] = mapped_column(
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
+class LedgerEntry(Base):
+    __tablename__ = "ledger_entries"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+    )
+
+    transfer_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("transfers.id"),
+        nullable=False,
+    )
+
+    account_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        ForeignKey("accounts.id"),
+        nullable=False,
+    )
+
+    amount_minor: Mapped[int] = mapped_column(
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )
